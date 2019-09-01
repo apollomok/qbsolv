@@ -3,12 +3,12 @@
 function qbsTargetRun
 {
     startsec=${SECONDS}
-    ../src/qbsolv -i ${test_dir}/${test} -m ${SubMatrix} ${verbose} -T ${Target} ${tabu}  >  $tmp_file
+    ../src/qbsolv -i ${test_dir}/${test} -m ${SubMatrix} ${verbose} -T ${Target} ${option1} >  $tmp_file
     walltime=`echo "print ${SECONDS} - ${startsec}"|python`
     TIME=`grep second $tmp_file| cut -b1-8`
     ENERGY=`grep Energy $tmp_file       | cut -b1-11`
     PARTITIONS=`grep Partitioned $tmp_file       | cut -f1 -d\ `
-    echo $test"  "   $TIME "   "$walltime"   " $PARTITIONS"   "  $ENERGY $Local
+    echo $test"  "   $TIME "   "$walltime"   " $PARTITIONS"   "  $ENERGY $Local  $option1
     Totaltime=`echo "print  $Totaltime + $TIME " |python `
     rm $tmp_file      
 }
@@ -21,6 +21,7 @@ Totaltime=0.0
 TotaltimeD=0.0
 TotalDenergy=0.0
 TotalDenergyD=0.0
+TotalenergyBest=0.0
 SECONDS=0
     for ((i=1;i<11;i++))
     do
@@ -28,13 +29,14 @@ SECONDS=0
        if [ -e ${test_dir}/${test} ] 
        then
            startsec=${SECONDS}
-          ../src/qbsolv -i ${test_dir}/${test} -m ${SubMatrix} ${verbose} $numrepeats > $tmp_file      
+          ../src/qbsolv -i ${test_dir}/${test} -m ${SubMatrix} ${verbose} ${numrepeats} ${option1}> $tmp_file      
            walltime=`echo "print ${SECONDS} - ${startsec}"|python`
             TIME=`grep second $tmp_file       | cut -b1-8`
             PARTITIONS=`grep Partitioned $tmp_file       | cut -f1 -d\ `
               ENERGY=`grep Energy $tmp_file       | cut -b1-11`
               Denergy=`echo "print  ${ENERGY} - ${Energies[i]}"|python `
-                echo ${test}"  "   $TIME   "   "$walltime"   " $PARTITIONS"   " $ENERGY "   "$Denergy $Local 
+              TotalenergyBest=`echo "print  ${TotalenergyBest} + ${Energies[i]}"|python `
+                echo ${test}"  "   $TIME   "   "$walltime"   " $PARTITIONS"   " $ENERGY "   "$Denergy $Local $option1
               Totaltime=`echo  "print $Totaltime + $TIME" |python ` 
               TotalDenergy=`echo  "print $TotalDenergy + $Denergy" |python` 
            startsec=${SECONDS}
@@ -42,6 +44,8 @@ SECONDS=0
     done
     rm $tmp_file      
   echo "    "Total energy difference $TotalDenergy $Local
+  TotalenergyPercent=`echo "print  $TotalDenergy / ${TotalenergyBest} * 100. "|python `
+  echo "    "Total energy difference Percent $TotalenergyPercent $Local
   echo "    "Total cpu time $Totaltime $Local
   echo "    "Elapsed time $SECONDS seconds
 }
@@ -68,33 +72,18 @@ echo "    "Total cpu time $Totaltime $Local
 echo "    "Elapsed time $SECONDS seconds
 }
 
-
+option1=$1
 test_dir="qubos"
 SubMatrix=""
 verbose="-v0"
 numrepeats=""
 tmp_file=$(mktemp)
-tabu="-t 33"
-tabu=""
 
 OPTIND=1         # Reset in case getopts has been used previously in the shell.
 
 # Initialize our own variables:
 
 OPTIND=1  #Reset 
-while getopts "S:" opt; do
-    case "$opt" in
-    h)
-        echo one option so far -S for submatrix default is no -S
-        exit 0
-        ;;
-    S)  SubMatrix="-S"${OPTARG}
-        ;;
-    esac
-done
-shift $((OPTIND-1))
-
-[ "$1" = "--" ] && shift
 
 #Default=`qbsolv -V |grep Version`
 Local=`../src/qbsolv -V |grep Compiled|sed "s/Compiled: //"`
